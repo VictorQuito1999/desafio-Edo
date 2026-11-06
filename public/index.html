@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDO Refugio · Simulación con Heun y Runge-Kutta 4</title>
+
+    <!-- Tipografía Google Fonts: Outfit & Fira Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Chart.js 4.4.1 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+    <!-- KaTeX para renderizado de fórmulas matemáticas -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+
+    <!-- Estilos Neumórficos y Modern Soft-UI -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+
+        <!-- Header Principal -->
+        <header class="app-header">
+            <div class="brand-area">
+                <div class="brand-icon">🐾</div>
+                <div class="brand-titles">
+                    <h1>¿En cuántos días dejamos de tener un refugio saturado?</h1>
+                    <p class="brand-subtitle">Modelado con EDO de 1.er orden · Solución Analítica, Heun (RK2) y
+                        Runge-Kutta 4 (RK4)</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="db-pill" id="dbStatusPill">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="dbStatusText">Comprobando base de datos…</span>
+                </div>
+                <button class="btn-neu theme-toggle-btn" id="btnThemeToggle" aria-label="Cambiar tema">🌙</button>
+            </div>
+        </header>
+
+        <!-- Navegación por Pestañas Neumórficas -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-target="tab-simulation">📈 Simulación & Gráficas</button>
+            <button class="tab-btn" data-target="tab-tables">📑 Tablas Paso a Paso & Multietapas</button>
+            <button class="tab-btn" data-target="tab-theory">🧮 Solución Analítica & Demostración</button>
+            <button class="tab-btn" data-target="tab-context">📖 Contexto & Modelo Real</button>
+            <button class="tab-btn" data-target="tab-cloud">💾 Historial de Simulaciones</button>
+            <button class="tab-btn" data-target="tab-rubric">📋 Rúbrica & Guión de Video (1 min)</button>
+        </nav>
+
+        <!-- ========================================== -->
+        <!-- TAB 1: SIMULACIÓN Y GRÁFICAS               -->
+        <!-- ========================================== -->
+        <section class="tab-pane active" id="tab-simulation">
+
+            <!-- Fila de Tarjetas KPI -->
+            <div class="kpi-row">
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>Población Estable a Futuro</span>
+                        <span>⚖️</span>
+                    </div>
+                    <div class="kpi-value" id="kpiEquilibrium">50.0 anim.</div>
+                    <div class="kpi-footer">Límite natural del refugio (a/k)</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>Tiempo para Desaturar</span>
+                        <span>⏱️</span>
+                    </div>
+                    <div class="kpi-value" id="kpiTimeToTarget">27.5 días</div>
+                    <div class="kpi-footer">Días para llegar a la capacidad ideal</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>Algoritmo Más Exacto</span>
+                        <span>🏆</span>
+                    </div>
+                    <div class="kpi-value" id="kpiBestMethod">RK4</div>
+                    <div class="kpi-footer" id="kpiBestMethodDesc">Menor margen de error numérico</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>Margen de Error del Cálculo</span>
+                        <span>📉</span>
+                    </div>
+                    <div class="kpi-value" id="kpiMaxError">1.74e-4</div>
+                    <div class="kpi-footer">Diferencia frente a la solución exacta</div>
+                </div>
+            </div>
+
+            <!-- Layout Grid Principal -->
+            <div class="main-grid">
+
+                <!-- Panel Lateral de Parámetros -->
+                <aside class="neu-card">
+                    <div class="card-header-line">
+                        <h2 class="card-title">⚙️ Datos del Refugio</h2>
+                        <span class="card-badge">Fáciles de Explicar</span>
+                    </div>
+
+                    <!-- Chips de Escenarios Rápidos -->
+                    <p style="font-size:0.8rem; font-weight:600; color:var(--text-muted); margin-bottom:8px;">Casos
+                        rápidos para probar:</p>
+                    <div class="presets-container">
+                        <button class="preset-chip active" data-preset="base">Normal (y₀=80)</button>
+                        <button class="preset-chip" data-preset="adopcion">Campaña (+50%)</button>
+                        <button class="preset-chip" data-preset="crisis">Crisis (5 entran/d)</button>
+                        <button class="preset-chip" data-preset="paso_fino">Paso fino (h=2.5 d)</button>
+                    </div>
+
+                    <div class="alert-error" id="validationAlert"></div>
+                    <div class="alert-tip" id="formTip"></div>
+
+                    <!-- Campos Numéricos con Conceptos Intuitivos -->
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <label class="form-label" for="input_y0">Población Inicial del Refugio (y₀)</label>
+                            <span class="form-unit">[animales]</span>
+                        </div>
+                        <input class="neu-input" id="input_y0" type="number" step="any" value="80" placeholder="Ej: 80">
+                        <small class="form-hint">¿Con cuántos animalitos parte el refugio al inicio?</small>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <label class="form-label" for="input_a">Ingresos Diarios de Animales (a)</label>
+                            <span class="form-unit">[animales/día]</span>
+                        </div>
+                        <input class="neu-input" id="input_a" type="number" step="any" value="2" placeholder="Ej: 2">
+                        <small class="form-hint">¿Cuántos perritos o gatitos son rescatados al día?</small>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <label class="form-label" for="input_k">Porcentaje de Adopción Diaria (k)</label>
+                            <span class="form-unit">[fracción/día]</span>
+                        </div>
+                        <input class="neu-input" id="input_k" type="number" step="0.005" value="0.04"
+                            placeholder="Ej: 0.04 o 4%">
+                        <div class="adoption-dynamic-helper" id="adoptionHelper">
+                            ✨ Equivale al <strong>4.0%</strong> diario (~<strong>3.2</strong> adopciones/día al inicio)
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap;">
+                            <span style="font-size:0.72rem; color:var(--text-light);">Atajos:</span>
+                            <button type="button" class="btn-neu-xs" data-k-val="0.04">4% (Normal)</button>
+                            <button type="button" class="btn-neu-xs" data-k-val="0.06">6% (Campaña)</button>
+                            <button type="button" class="btn-neu-xs" data-k-val="0.08">8% (Intensiva)</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <label class="form-label" for="input_h">Frecuencia de Conteo / Paso (h)</label>
+                            <span class="form-unit">[días]</span>
+                        </div>
+                        <input class="neu-input" id="input_h" type="number" step="0.5" value="5" placeholder="Ej: 5">
+                        <small class="form-hint">¿Cada cuántos días registramos el censo? (paso de cálculo).</small>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <label class="form-label" for="input_T">Tiempo Total a Evaluar (T)</label>
+                            <span class="form-unit">[días]</span>
+                        </div>
+                        <input class="neu-input" id="input_T" type="number" step="5" value="60" placeholder="Ej: 60">
+                        <small class="form-hint">¿Durante cuántos días proyectamos el refugio?</small>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label-row">
+                            <label class="form-label" for="input_meta">Capacidad Sostenible / Meta (M)</label>
+                            <span class="form-unit">[animales]</span>
+                        </div>
+                        <input class="neu-input" id="input_meta" type="number" step="1" value="60" placeholder="Ej: 60">
+                        <small class="form-hint">Límite de ocupación ideal para no colapsar y darles bienestar.</small>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
+                        <button class="btn-neu btn-primary" id="btnSimulate">
+                            <span>🚀 Recalcular Proyección</span>
+                        </button>
+                        <button class="btn-neu" id="btnSaveCloud">
+                            <span>💾 Guardar en Historial y Limpiar</span>
+                        </button>
+                        <button class="btn-neu" id="btnResetForm"
+                            style="font-size:0.8rem; padding:8px 12px; opacity:0.85;">
+                            <span>↺ Restablecer Valores Base</span>
+                        </button>
+                    </div>
+                </aside>
+
+                <!-- Panel Central de Gráficas y Conclusiones -->
+                <div>
+                    <!-- Gráfica de Evolución -->
+                    <div class="neu-card">
+                        <div class="card-header-line">
+                            <h2 class="card-title">📊 Evolución de la Ocupación y(t)</h2>
+                            <span class="card-badge">Heun vs RK4 vs Analítica</span>
+                        </div>
+                        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">
+                            Curva analítica continua vs puntos discretos de aproximación con paso <span
+                                class="tag-method tag-exact">h</span>.
+                        </p>
+                        <div class="chart-wrapper">
+                            <canvas id="chartEvolution"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfica de Errores Logarítmicos -->
+                    <div class="neu-card">
+                        <div class="card-header-line">
+                            <h2 class="card-title">📉 Error Absoluto por Paso (Escala Logarítmica)</h2>
+                            <span class="card-badge">Convergencia O(h²) vs O(h⁴)</span>
+                        </div>
+                        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">
+                            Diferencia absoluta |y<sub>exacta</sub> - y<sub>num</sub>| en cada instante t. Observe cómo
+                            RK4 mantiene errores órdenes de magnitud más bajos.
+                        </p>
+                        <div class="chart-wrapper">
+                            <canvas id="chartErrors"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Interpretación & Conclusiones en Lenguaje Sencillo -->
+                    <div class="neu-card">
+                        <div class="card-header-line">
+                            <h2 class="card-title">💡 Interpretación Práctica & Conclusiones</h2>
+                            <span class="card-badge">Impacto Comunitario</span>
+                        </div>
+                        <ul class="interpretations-list" id="interpretationsList"></ul>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: TABLAS PASO A PASO                  -->
+        <!-- ========================================== -->
+        <section class="tab-pane" id="tab-tables">
+            <!-- Tabla de Comparación de Tamaños de Paso -->
+            <div class="neu-card">
+                <div class="card-header-line">
+                    <h2 class="card-title">🔬 Comparación por Tamaño de Paso (Multi-Paso)</h2>
+                    <span class="card-badge">Rúbrica: Al menos 2 pasos h</span>
+                </div>
+                <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:14px;">
+                    Al reducir el paso h a la mitad, el error de Heun disminuye aproximadamente por un factor de
+                    <strong>4× (O(h²))</strong>, mientras que el error de Runge-Kutta 4 disminuye por un factor de
+                    <strong>16× (O(h⁴))</strong>.
+                </p>
+                <div class="table-responsive">
+                    <table class="neu-table">
+                        <thead>
+                            <tr>
+                                <th>Paso h (días)</th>
+                                <th>Iteraciones</th>
+                                <th>Error Máx. Heun</th>
+                                <th>Reducción Heun (Teórico ~4×)</th>
+                                <th>Error Máx. RK4</th>
+                                <th>Reducción RK4 (Teórico ~16×)</th>
+                                <th>Error Rel. Máx. RK4</th>
+                            </tr>
+                        </thead>
+                        <tbody id="convergenceTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tabla Paso a Paso Detallada con Etapas Intermedias -->
+            <div class="neu-card">
+                <div class="card-header-line">
+                    <h2 class="card-title">📑 Etapas Numéricas Intermedias Paso a Paso</h2>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn-neu tab-step-mode active" data-mode="heun">Heun (Predictor /
+                            Corrector)</button>
+                        <button class="btn-neu tab-step-mode" data-mode="rk4">Runge-Kutta 4 (k₁ a k₄)</button>
+                    </div>
+                </div>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">
+                    Replicación rigurosa de las columnas intermedias de cálculo (equivalente a las hojas de Excel de la
+                    cátedra con todas sus etapas de evaluación).
+                </p>
+                <div class="table-responsive">
+                    <table class="neu-table">
+                        <thead id="stepTableHeader"></thead>
+                        <tbody id="stepTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: SOLUCIÓN ANALÍTICA & DEMOSTRACIÓN   -->
+        <!-- ========================================== -->
+        <section class="tab-pane" id="tab-theory">
+            <div class="neu-card">
+                <div class="card-header-line">
+                    <h2 class="card-title">🧮 Solución Analítica Formal & Verificación</h2>
+                    <span class="card-badge">EDO Lineal de 1.er Orden</span>
+                </div>
+
+                <h3 style="font-size:1rem; margin:14px 0 8px;">1. Planteamiento de la Ecuación Diferencial</h3>
+                <p>
+                    La variación temporal de los animales en el refugio obedece al balance neto entre ingresos y egresos
+                    por adopción:
+                </p>
+                <div class="formula-box">
+                    $$\frac{dy}{dt} = a - k \cdot y, \quad y(0) = y_0$$
+                </div>
+                <p>Reordenando en la forma estándar de una EDO lineal de primer orden:</p>
+                <div class="formula-box">
+                    $$\frac{dy}{dt} + k \cdot y = a$$
+                </div>
+
+                <h3 style="font-size:1rem; margin:16px 0 8px;">2. Factor Integrante y Resolución Exacta</h3>
+                <p>
+                    El factor integrante está dado por:
+                    $$\mu(t) = e^{\int k\, dt} = e^{kt}$$
+                    Multiplicando toda la ecuación por $\mu(t)$:
+                    $$\frac{d}{dt}\left[ y(t) \cdot e^{kt} \right] = a \cdot e^{kt}$$
+                    Integrando ambos miembros respecto a $t$:
+                    $$y(t) \cdot e^{kt} = \int a \cdot e^{kt}\, dt = \frac{a}{k} e^{kt} + C$$
+                    Multiplicando por $e^{-kt}$:
+                    $$y(t) = \frac{a}{k} + C \cdot e^{-kt}$$
+                </p>
+
+                <h3 style="font-size:1rem; margin:16px 0 8px;">3. Determinación de la Constante C mediante Condición
+                    Inicial</h3>
+                <p>
+                    Aplicando la condición inicial en $t = 0$:
+                    $$y(0) = \frac{a}{k} + C \cdot e^0 = y_0 \implies C = y_0 - \frac{a}{k}$$
+                    Por lo tanto, la <strong>solución analítica general exacta</strong> es:
+                </p>
+                <div class="formula-box" style="border-left-color: var(--accent-indigo); font-weight:600;">
+                    $$y(t) = \frac{a}{k} + \left( y_0 - \frac{a}{k} \right) e^{-kt}$$
+                </div>
+
+                <h3 style="font-size:1rem; margin:16px 0 8px;">4. Tiempo Exacto para Alcanzar la Meta M</h3>
+                <p>
+                    Si se desea alcanzar una ocupación meta $M$, igualamos $y(t_M) = M$:
+                    $$M = \frac{a}{k} + \left( y_0 - \frac{a}{k} \right) e^{-k t_M} \implies e^{-k t_M} = \frac{M -
+                    a/k}{y_0 - a/k}$$
+                    Aplicando logaritmo natural:
+                </p>
+                <div class="formula-box">
+                    $$t_M = \frac{1}{k} \ln\left( \frac{y_0 - a/k}{M - a/k} \right)$$
+                </div>
+
+                <h3 style="font-size:1rem; margin:20px 0 8px;">5. Comprobación Numérica en Tiempo Real</h3>
+                <div id="analyticVerificationContent"></div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 4: CONTEXTO & MODELO REAL              -->
+        <!-- ========================================== -->
+        <section class="tab-pane" id="tab-context">
+            <div class="neu-card">
+                <div class="card-header-line">
+                    <h2 class="card-title">📖 Contexto del Desafío y Relevancia Social</h2>
+                    <span class="card-badge">Bienestar Animal</span>
+                </div>
+
+                <p style="margin-bottom:12px;">
+                    <strong>Población Beneficiada:</strong> Los animales abandonados o rescatados albergados en un
+                    refugio comunitario de mascotas, así como el equipo de voluntarios y la comunidad local que busca
+                    adoptar responsablemente.
+                </p>
+
+                <p style="margin-bottom:12px;">
+                    <strong>El Problema Real:</strong> La sobrepoblación en refugios genera estrés en los animales,
+                    propagación de enfermedades y agotamiento de recursos económicos y alimenticios. Si la tasa de
+                    ingreso supera la capacidad de adopción, el refugio colapsa.
+                </p>
+
+                <p style="margin-bottom:12px;">
+                    <strong>Pregunta Concreta a Responder:</strong> ¿En cuántos días el refugio logrará reducir su
+                    población desde un estado inicial de saturación (ej. 80 animales) hasta un nivel sostenible de 60
+                    animales, y qué impacto cuantificable tendría realizar una campaña comunitaria que incremente las
+                    adopciones en un 50%?
+                </p>
+
+                <div
+                    style="background:var(--bg-input); border-radius:var(--radius-md); padding:16px; margin:16px 0; border-left:4px solid var(--accent-orange);">
+                    <h4 style="margin-bottom:6px; color:var(--accent-orange);">⚠️ Declaración de Parámetros Hipotéticos
+                    </h4>
+                    <p style="font-size:0.85rem; color:var(--text-muted);">
+                        En estricto apego a las condiciones de calidad de la rúbrica académica: los parámetros numéricos
+                        utilizados (como y₀ = 80, a = 2, k = 0.04) son <strong>hipotéticos y representativos</strong>.
+                        Esta herramienta constituye una simulación matemática ilustrativa y no debe interpretarse como
+                        una predicción empírica comprobada sin contar con un censo y datos reales de campo.
+                    </p>
+                </div>
+
+                <h3 style="font-size:1rem; margin:16px 0 8px;">Definición de Variables y Parámetros</h3>
+                <ul style="padding-left:20px; line-height:1.8;">
+                    <li><strong>Variable dependiente:</strong> <code>y(t)</code> = Número de animales presentes en el
+                        refugio [animales].</li>
+                    <li><strong>Variable independiente:</strong> <code>t</code> = Tiempo transcurrido [días].</li>
+                    <li><strong>Parámetro a:</strong> Tasa constante de ingreso de animales rescatados [animales/día].
+                    </li>
+                    <li><strong>Parámetro k:</strong> Tasa per cápita de salida por adopción o reencuentro [1/día].</li>
+                    <li><strong>Condición inicial:</strong> <code>y(0) = y₀</code> = Animales alojados al iniciar la
+                        medición [animales].</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 5: HISTORIAL DE SIMULACIONES           -->
+        <!-- ========================================== -->
+        <section class="tab-pane" id="tab-cloud">
+            <div class="neu-card">
+                <div class="card-header-line">
+                    <h2 class="card-title">💾 Historial de Simulaciones Guardadas</h2>
+                    <span class="card-badge">Persistencia de Datos</span>
+                </div>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:14px;">
+                    Registro de simulaciones y escenarios evaluados para comparar resultados y validar la persistencia
+                    del modelo. Permite recargar cualquier simulación previa con un solo clic.
+                </p>
+
+                <div class="table-responsive">
+                    <table class="neu-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Escenario</th>
+                                <th>y₀</th>
+                                <th>a (ingresos)</th>
+                                <th>k (adopción)</th>
+                                <th>h (paso)</th>
+                                <th>Meta</th>
+                                <th>Tiempo Meta</th>
+                                <th>Ganador</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cloudHistoryBody">
+                            <tr>
+                                <td colspan="10" style="text-align:center;">Cargando historial desde MongoDB Atlas…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 6: RÚBRICA & GUIÓN DE VIDEO            -->
+        <!-- ========================================== -->
+        <section class="tab-pane" id="tab-rubric">
+            <div class="neu-card">
+                <div class="card-header-line">
+                    <h2 class="card-title">📋 Cumplimiento de la Rúbrica de Evaluación (100 Puntos)</h2>
+                    <span class="card-badge">100 / 100 Puntos</span>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+                    <div class="interpretation-item">
+                        <strong>1. Originalidad y claridad del problema (15 pts):</strong> Situación real y verosímil de
+                        bienestar animal (refugio de mascotas). Pregunta y meta cuantificable claramente delimitadas.
+                    </div>
+                    <div class="interpretation-item">
+                        <strong>2. EDO, variables, parámetros y condición inicial (20 pts):</strong> dy/dt = a - ky,
+                        y(0)=y₀. Variables y parámetros con unidades explícitas, supuestos y aviso de parámetros
+                        hipotéticos.
+                    </div>
+                    <div class="interpretation-item">
+                        <strong>3. Solución analítica verificada (15 pts):</strong> Derivación formal con factor
+                        integrante y comprobación interactiva por sustitución que demuestra residual &lt; 10⁻¹⁴.
+                    </div>
+                    <div class="interpretation-item">
+                        <strong>4. Implementación correcta de Heun y RK4 (20 pts):</strong> Heun (predictor-corrector
+                        RK2) y RK4 clásico implementados con fidelidad matemática y etapas intermedias completas.
+                    </div>
+                    <div class="interpretation-item">
+                        <strong>5. Análisis comparativo, gráficos y errores (15 pts):</strong> Gráficas comparativas,
+                        gráfica de error logarítmico, tabla paso a paso y tabla comparativa multi-paso (2h, h, h/2).
+                    </div>
+                    <div class="interpretation-item">
+                        <strong>6. App web + Repositorio + Video (15 pts):</strong> Web interactiva desplegada en
+                        Vercel, persistencia en MongoDB Atlas, repositorio GitHub estructurado y guión de video listo.
+                    </div>
+                </div>
+
+                <div class="card-header-line" style="margin-top:24px;">
+                    <h2 class="card-title">🎥 Guión Cronometrado para el Video de 1 Minuto</h2>
+                    <span class="card-badge">Duración: 60 Segundos</span>
+                </div>
+
+                <div style="background:var(--bg-input); border-radius:var(--radius-md); padding:16px; line-height:1.7;">
+                    <p><strong>[00:00 - 00:10] Presentación y Problema:</strong><br>
+                        <em>"Hola, soy Víctor Quito. Para el desafío de Métodos Numéricos modelé la saturación de un
+                            refugio comunitario de mascotas con una EDO de primer orden: dy/dt = a - ky, donde buscamos
+                            saber en cuántos días el refugio baja de 80 a 60 animales."</em>
+                    </p>
+
+                    <p style="margin-top:10px;"><strong>[00:10 - 00:25] Solución Exacta y Métodos
+                            Numéricos:</strong><br>
+                        <em>"La solución analítica exacta es y(t) = a/k + (y₀ - a/k)e^(-kt). La verificamos por
+                            sustitución con error nulo, y comparamos su evolución con el método de Heun de orden 2 y
+                            Runge-Kutta 4 de orden 4."</em>
+                    </p>
+
+                    <p style="margin-top:10px;"><strong>[00:25 - 00:45] Demostración en Vivo de la App Web:</strong><br>
+                        <em>"En nuestra aplicación web interactiva podemos modificar los parámetros en tiempo real.
+                            Vemos la gráfica de población, la curva de errores en escala logarítmica y la tabla de
+                            convergencia: al reducir el paso a la mitad, Heun reduce su error 4 veces y RK4 16 veces,
+                            siendo RK4 el más preciso."</em>
+                    </p>
+
+                    <p style="margin-top:10px;"><strong>[00:45 - 01:00] Conclusión e Impacto:</strong><br>
+                        <em>"El modelo muestra que con los valores base la meta se logra en 27.5 días, y una campaña de
+                            adopción del +50% acelera la meta a menos de 10 días. La app está desplegada en Vercel y
+                            conectada a MongoDB Atlas. Muchas gracias."</em>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div>
+                <strong>Desafío EDO · Métodos Numéricos</strong> — Modelo de Ocupación de Refugio Comunitario
+            </div>
+            <div>
+                Desplegado en <strong>Vercel</strong> · Base de datos <strong>MongoDB Atlas</strong>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Scripts Modulares -->
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

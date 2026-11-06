@@ -88,8 +88,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Servir archivos estáticos
-  let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
+  // Servir archivos estáticos (revisa public/ primero, luego la raíz)
+  let filePath = path.join(__dirname, 'public', pathname === '/' ? 'index.html' : pathname);
+  if (!fs.existsSync(filePath)) {
+    filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
+  }
   
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
