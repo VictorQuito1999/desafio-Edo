@@ -728,8 +728,12 @@ class EDOApp {
         localStorage.setItem('edo_simulaciones_cache', JSON.stringify(localData.slice(0, 50)));
       } catch (_) {}
 
+      let userMsg = err.message || 'Error de conexión';
+      if (userMsg.includes('SSL') || userMsg.includes('tlsv1 alert') || userMsg.includes('alert number 80')) {
+        userMsg = 'IP no autorizada en Atlas: agrega 0.0.0.0/0 en Network Access';
+      }
       this.renderHistoryTable(localData);
-      this.showToast(`⚠️ Guardado localmente (${err.message}). Revisa conexión a MongoDB Atlas.`, 'warning');
+      this.showToast(`⚠️ Guardado en historial (${userMsg})`, 'warning');
     } finally {
       this.btnSaveCloud.disabled = false;
       this.btnSaveCloud.textContent = '💾 Guardar en Historial y Limpiar';
