@@ -1,0 +1,9 @@
+name: keepalive
+on:
+  schedule: [{ cron: "0 12 */3 * *" }]   # cada 3 días: genera una conexión real a MongoDB
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS "${{ secrets.APP_URL }}/api/simulaciones" > /dev/null

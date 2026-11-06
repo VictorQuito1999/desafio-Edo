@@ -1,0 +1,15 @@
+{
+  "name": "edo-refugio",
+  "version": "1.0.0",
+  "description": "Desafío de Métodos Numéricos: EDO para modelar la saturación y adopción en un refugio de mascotas con Heun y RK4",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "vercel dev",
+    "test:db": "node test-db.js",
+    "seed:db": "node seed-db.js"
+  },
+  "dependencies": {
+    "mongodb": "^6.8.0"
+  }
+}
