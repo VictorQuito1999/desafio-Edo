@@ -131,3 +131,52 @@ Desafioedo/
 ├── test-db.js                  # Script para verificar conexión local con MongoDB Atlas
 └── package.json                # Configuración de dependencias (mongodb)
 ```
+
+---
+
+## 7. Instrucciones de Ejecución
+
+### Prerrequisitos
+* **Node.js** (versión 18 o superior recomendada).
+* Conexión a internet (para sincronización con MongoDB Atlas y carga de librerías CDN como Chart.js y KaTeX).
+
+### Ejecución Local Paso a Paso
+
+1. **Clonar el repositorio:**
+   ```bash
+   git clone https://github.com/VictorQuito1999/desafio-Edo.git
+   cd desafio-Edo
+   ```
+
+2. **Instalar dependencias:**
+   ```bash
+   npm install
+   ```
+
+3. **Verificar conexión a la base de datos (Opcional):**
+   ```bash
+   npm run test:db
+   ```
+
+4. **Iniciar el servidor local:**
+   ```bash
+   npm start
+   ```
+
+5. **Abrir en el navegador:**
+   Ingresa a [http://localhost:3000](http://localhost:3000) para interactuar con la aplicación, simular escenarios con Heun y RK4, y guardar registros en MongoDB Atlas.
+
+### Despliegue en la Nube (Vercel)
+
+El proyecto está configurado con `vercel.json` y la carpeta `api/` para funcionar automáticamente como Serverless en Vercel:
+1. Conectar el repositorio de GitHub en el panel de Vercel.
+2. Desplegar automáticamente con un clic.
+3. Asegurarse de que en MongoDB Atlas esté habilitada la regla `0.0.0.0/0` en *Network Access* para permitir la comunicación segura en la nube.
+
+---
+
+## 8. Enlaces del Proyecto
+
+* **Repositorio GitHub:** [https://github.com/VictorQuito1999/desafio-Edo](https://github.com/VictorQuito1999/desafio-Edo)
+* **Aplicación Web Desplegada en Vercel:** [https://desafio-edo.vercel.app](https://desafio-edo.vercel.app)
+* **Video de Explicación (1 minuto):** Enlace en entrega académica.
