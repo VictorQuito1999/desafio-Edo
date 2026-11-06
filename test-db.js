@@ -33,8 +33,11 @@ try {
   await client.connect();
   console.log('✅ Conexión exitosa a MongoDB Atlas');
   const db = client.db('edo_refugio');
-  const count = await db.collection('simulaciones').countDocuments();
-  console.log(`📊 Total de simulaciones guardadas en colección 'simulaciones': ${count}`);
+  const docs = await db.collection('simulaciones').find({}).sort({ fecha: -1 }).toArray();
+  console.log(`📊 Total de simulaciones guardadas en colección 'simulaciones': ${docs.length}`);
+  docs.forEach((d, i) => {
+    console.log(` [${i+1}] ${d.escenario} | y0=${d.y0}, a=${d.a}, k=${d.k}, h=${d.h}, meta=${d.meta} | ${new Date(d.fecha).toLocaleString()}`);
+  });
   await client.close();
   console.log('✨ Prueba de base de datos finalizada correctamente.');
 } catch (err) {

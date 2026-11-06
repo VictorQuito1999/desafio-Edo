@@ -598,23 +598,71 @@ class EDOApp {
 
   async fetchCloudHistory() {
     this.statusDot.className = 'status-dot';
-    this.dbStatusText.textContent = 'Comprobando conexión…';
+    this.dbStatusText.textContent = 'Comprobando MongoDB Atlas…';
 
     try {
       const response = await fetch('/api/simulaciones');
-      if (!response.ok) throw new Error('Servidor no respondió 200');
-      const simulations = await response.json();
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      let simulations = await response.json();
 
       this.statusDot.className = 'status-dot online';
-      this.dbStatusText.textContent = 'Historial Sincronizado (MongoDB Atlas)';
+      this.dbStatusText.textContent = 'MongoDB Atlas Conectado';
+
+      // Sincronización inteligente: Si el usuario guardó casos mientras estaba offline o en caché local,
+      // subirlos automáticamente a MongoDB Atlas para que nunca se pierdan
+      try {
+        const cachedRaw = localStorage.getItem('edo_simulaciones_cache');
+        if (cachedRaw) {
+          const cachedList = JSON.parse(cachedRaw);
+          if (Array.isArray(cachedList) && cachedList.length > 0) {
+            const pendingSync = cachedList.filter(item => {
+              if (item.escenario && (
+                item.escenario.startsWith('Caso Base') || 
+                item.escenario.startsWith('Campaña') || 
+                item.escenario.startsWith('Crisis') || 
+                item.escenario.startsWith('Paso Fino')
+              )) {
+                return false;
+              }
+              return !simulations.some(dbItem =>
+                Math.abs(dbItem.y0 - item.y0) < 1e-4 &&
+                Math.abs(dbItem.a - item.a) < 1e-4 &&
+                Math.abs(dbItem.k - item.k) < 1e-4 &&
+                Math.abs(dbItem.h - item.h) < 1e-4 &&
+                Math.abs(dbItem.meta - item.meta) < 1e-4
+              );
+            });
+
+            if (pendingSync.length > 0) {
+              for (const record of pendingSync) {
+                try {
+                  await fetch('/api/simulaciones', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(record)
+                  });
+                } catch (_) {}
+              }
+              const refResponse = await fetch('/api/simulaciones');
+              if (refResponse.ok) {
+                simulations = await refResponse.json();
+              }
+            }
+          }
+        }
+      } catch (syncErr) {
+        console.warn('Aviso en sincronización de caché local:', syncErr);
+      }
+
       try {
         localStorage.setItem('edo_simulaciones_cache', JSON.stringify(simulations));
       } catch (_) {}
+
       this.renderHistoryTable(simulations);
     } catch (err) {
-      // Fallback transparente: usar caché local o semillas predefinidas para que NUNCA esté vacía
-      this.statusDot.className = 'status-dot online';
-      this.dbStatusText.textContent = 'Historial Activo (Local / Listo para Vercel)';
+      console.warn('Conexión con /api/simulaciones no disponible:', err);
+      this.statusDot.className = 'status-dot';
+      this.dbStatusText.textContent = 'Historial de Simulaciones';
 
       let localData = null;
       try {
@@ -624,9 +672,6 @@ class EDOApp {
 
       if (!localData || !Array.isArray(localData) || localData.length === 0) {
         localData = DEFAULT_BENCHMARKS;
-        try {
-          localStorage.setItem('edo_simulaciones_cache', JSON.stringify(localData));
-        } catch (_) {}
       }
 
       this.renderHistoryTable(localData);
@@ -653,7 +698,7 @@ class EDOApp {
 
     try {
       this.btnSaveCloud.disabled = true;
-      this.btnSaveCloud.textContent = 'Guardando…';
+      this.btnSaveCloud.textContent = 'Guardando en MongoDB Atlas…';
 
       const response = await fetch('/api/simulaciones', {
         method: 'POST',
@@ -661,28 +706,30 @@ class EDOApp {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error('Error al registrar en servidor');
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.message || errJson.error || `Error HTTP ${response.status}`);
+      }
 
-      this.showToast('✅ Simulación guardada en la base de datos.');
-      this.fetchCloudHistory();
+      this.showToast('✅ Simulación guardada en MongoDB Atlas.');
+      await this.fetchCloudHistory();
     } catch (err) {
-      // Si corre en modo estático (file:// o sin serverless), guardar en caché local
+      console.error('Fallo al guardar en MongoDB Atlas:', err);
+      // Respaldo local
       const newRecord = { ...payload, fecha: new Date().toISOString() };
       let localData = [];
       try {
         const cached = localStorage.getItem('edo_simulaciones_cache');
         if (cached) localData = JSON.parse(cached);
       } catch (_) {}
-      if (!Array.isArray(localData) || localData.length === 0) {
-        localData = [...DEFAULT_BENCHMARKS];
-      }
+      if (!Array.isArray(localData)) localData = [];
       localData.unshift(newRecord);
       try {
-        localStorage.setItem('edo_simulaciones_cache', JSON.stringify(localData.slice(0, 30)));
+        localStorage.setItem('edo_simulaciones_cache', JSON.stringify(localData.slice(0, 50)));
       } catch (_) {}
 
       this.renderHistoryTable(localData);
-      this.showToast('✅ Simulación guardada en el historial.');
+      this.showToast(`⚠️ Guardado localmente (${err.message}). Revisa conexión a MongoDB Atlas.`, 'warning');
     } finally {
       this.btnSaveCloud.disabled = false;
       this.btnSaveCloud.textContent = '💾 Guardar en Historial y Limpiar';

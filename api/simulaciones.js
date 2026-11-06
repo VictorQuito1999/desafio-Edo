@@ -1,27 +1,27 @@
 import { MongoClient } from 'mongodb';
 import dns from 'node:dns';
 
-// Fallback de servidores DNS para entornos locales donde el proveedor de internet bloquea registros SRV
+// Fallback de servidores DNS para entornos donde el proveedor bloquea registros SRV
 try {
-  if (process.env.NODE_ENV !== 'production' && typeof dns.setServers === 'function') {
+  if (typeof dns.setServers === 'function') {
     dns.setServers(['8.8.8.8', '1.1.1.1']);
   }
 } catch (_) {
-  // Ignorar si no se puede configurar en tiempo de ejecución restringido
+  // Ignorar si el runtime restringe dns.setServers
 }
+
+// Cadena de conexión de MongoDB Atlas para producción y despliegue Vercel
+const DEFAULT_MONGODB_URI = 'mongodb+srv://vquitoc_db_user:AwzUQf5Kg1O5TnSz@clusteredo.y9qbykx.mongodb.net/?retryWrites=true&w=majority&appName=clusteredo';
 
 let cachedClient = null;
 let cachedPromise = null;
 
 async function getSimulacionesCollection() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error('La variable de entorno MONGODB_URI no está configurada.');
-  }
+  const uri = process.env.MONGODB_URI || DEFAULT_MONGODB_URI;
 
   if (!cachedPromise) {
     cachedClient = new MongoClient(uri, {
-      serverSelectionTimeoutMS: 6000,
+      serverSelectionTimeoutMS: 7000,
       maxPoolSize: 10,
     });
     cachedPromise = cachedClient.connect();
@@ -29,6 +29,31 @@ async function getSimulacionesCollection() {
 
   const client = await cachedPromise;
   return client.db('edo_refugio').collection('simulaciones');
+}
+
+async function parseRequestBody(req) {
+  if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'string') {
+      try {
+        return JSON.parse(req.body);
+      } catch (_) {
+        return {};
+      }
+    }
+    return req.body;
+  }
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch (_) {
+        resolve({});
+      }
+    });
+    req.on('error', () => resolve({}));
+  });
 }
 
 export default async function handler(req, res) {
@@ -47,7 +72,7 @@ export default async function handler(req, res) {
 
     // Guardar una nueva simulación
     if (req.method === 'POST') {
-      const body = req.body || {};
+      const body = await parseRequestBody(req);
       const requiredNumericFields = ['y0', 'a', 'k', 'h', 'T', 'meta', 'errHeun', 'errRK4'];
       const doc = {};
 
@@ -61,7 +86,7 @@ export default async function handler(req, res) {
 
       doc.tMeta = body.tMeta == null || !Number.isFinite(Number(body.tMeta)) ? null : Number(body.tMeta);
       doc.ganador = body.ganador === 'Heun' ? 'Heun' : 'RK4';
-      doc.escenario = typeof body.escenario === 'string' ? body.escenario.trim().slice(0, 50) : 'Personalizado';
+      doc.escenario = typeof body.escenario === 'string' && body.escenario.trim() ? body.escenario.trim().slice(0, 80) : 'Personalizado';
       doc.fecha = new Date();
 
       const result = await col.insertOne(doc);
@@ -70,7 +95,7 @@ export default async function handler(req, res) {
 
     // Listar las simulaciones más recientes
     if (req.method === 'GET') {
-      const limit = Math.min(Math.max(Number(req.query?.limit) || 10, 1), 50);
+      const limit = Math.min(Math.max(Number(req.query?.limit) || 20, 1), 50);
       const items = await col
         .find({}, { projection: { _id: 0 } })
         .sort({ fecha: -1 })
